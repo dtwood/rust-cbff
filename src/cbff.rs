@@ -26,26 +26,26 @@ fn to_bytes<B>(input: &[B]) -> &[u8] {
     unsafe { slice::from_raw_parts(out_ptr, output_len) }
 }
 
-pub struct State<'a> {
+pub struct Cbff<'a> {
     fat_size: u32,
     minifat_size: u32,
-    file: &'a [u8],
+    data: &'a [u8],
     dif_chain: Vec<u32>,
     fat_chain: Vec<SectorType>,
     minifat_chain: Vec<SectorType>,
     minifat_start: u32,
 }
 
-impl<'a> State<'a> {
-    pub fn from_file(file: &'a [u8]) -> State<'a> {
+impl<'a> Cbff<'a> {
+    pub fn from_slice(slice: &'a [u8]) -> Cbff<'a> {
         let temp_fat_chain = Vec::new();
         let temp_minifat_chain = Vec::new();
         let temp_dif_chain = Vec::new();
 
-        let mut state = State {
+        let mut state = Cbff {
             fat_size: 0,
             minifat_size: 0,
-            file: file,
+            data: slice,
             fat_chain: temp_fat_chain,
             minifat_chain: temp_minifat_chain,
             dif_chain: temp_dif_chain,
@@ -101,7 +101,7 @@ impl<'a> State<'a> {
 
     fn get_file_header(&self) -> &FileHeader {
         let range = 0..mem::size_of::<FileHeader>();
-        let slice = &self.file[range];
+        let slice = &self.data[range];
         FileHeader::borrowed_from(slice)
     }
 
@@ -126,7 +126,7 @@ impl<'a> State<'a> {
                 SectorType::Pointer(p) => {
                     for idx in 0..(&self.fat_size / 4) {
                         let range = self.get_range(p, 4, idx);
-                        let slice = &self.file[range];
+                        let slice = &self.data[range];
                         let next_offset = SectorTypeBack::borrowed_from(slice);
 
                         if idx == self.fat_size / 4 {
@@ -166,7 +166,7 @@ impl<'a> State<'a> {
         for &i in &self.dif_chain {
             for idx in 0..(&self.fat_size / mem::size_of::<FatSector>() as u32) {
                 let range = self.get_range(i, mem::size_of::<FatSector>() as u32, idx);
-                let slice = &self.file[range];
+                let slice = &self.data[range];
                 let header = FatSector::borrowed_from(slice);
                 for &sector in header.fat_sectors.iter() {
                     output.push(sector.get_enum());
@@ -186,7 +186,7 @@ impl<'a> State<'a> {
                 mem::size_of::<MiniFatSector>() as u32,
                 mem::size_of::<MiniFatSector>() as u32,
                 self.get_file_header().mini_fat_start);
-            let slice = &self.file[range];
+            let slice = &self.data[range];
             let item = MiniFatSector::borrowed_from(slice);
             output.push(item.sector.get_enum());
         }
@@ -208,7 +208,7 @@ impl<'a> State<'a> {
                 mem::size_of::<StructuredStorageDirectoryEntry>() as u32,
                 mem::size_of::<StructuredStorageDirectoryEntry>() as u32,
                 self.get_file_header().sect_dir_start);
-            let slice = &self.file[range];
+            let slice = &self.data[range];
 
             StructuredStorageDirectoryEntry::borrowed_from(slice)
     }
@@ -311,7 +311,7 @@ impl<'a> State<'a> {
         if dir.size >= self.get_file_header().mini_sector_cutoff {
             while remaining_size > 0 {
                 let range = self.get_chain_range(current_offset, self.fat_size, min(remaining_size, self.fat_size), dir.sect_start);
-                let slice = &self.file[range];
+                let slice = &self.data[range];
                 output.extend(slice);
                 remaining_size -= min(remaining_size, self.fat_size);
                 current_offset += 1;
@@ -319,7 +319,7 @@ impl<'a> State<'a> {
         } else {
             while remaining_size > 0 {
                 let range = self.get_minifat_chain_range(current_offset, self.minifat_size, min(remaining_size, self.minifat_size), dir.sect_start);
-                let slice = &self.file[range];
+                let slice = &self.data[range];
                 output.extend(slice);
                 remaining_size -= min(remaining_size, self.minifat_size);
                 current_offset += 1;

@@ -5,4 +5,4 @@ extern crate encoding;
 mod cbff;
 mod cbff_structs;
 
-pub use cbff::State;
+pub use cbff::Cbff;
