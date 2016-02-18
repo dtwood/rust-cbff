@@ -1,15 +1,18 @@
 use cbff_structs::*;
-use encoding::{Encoding, DecoderTrap};
 use encoding::all::UTF_16LE;
+use encoding::{Encoding, DecoderTrap};
+use safe_index::SafeIndex;
 use std::cmp::min;
 use std::collections::{BinaryHeap, HashMap};
-use std::convert::AsRef;
 use std::mem;
 use std::ops::Range;
 use std::slice;
+use super::sequence::Sequence;
+use super::error::CbffResult;
+use super::error::CbffErrorEnum::*;
 
-macro_rules! p {
-    ($e: expr) => (println!("{} = {:?}", stringify!($e), $e))
+macro_rules! e {
+        ($e: expr) => (::std::result::Result::Err(From::from($e)))
 }
 
 fn to_bytes<B>(input: &[B]) -> &[u8] {
@@ -34,35 +37,43 @@ pub struct Cbff<'a> {
     fat_chain: Vec<SectorType>,
     minifat_chain: Vec<SectorType>,
     minifat_start: u32,
+    file_header: &'a FileHeader,
 }
 
 impl<'a> Cbff<'a> {
-    pub fn from_slice(slice: &'a [u8]) -> Cbff<'a> {
+    pub fn from_slice(slice: &'a [u8]) -> CbffResult<Cbff<'a>> {
         let temp_fat_chain = Vec::new();
         let temp_minifat_chain = Vec::new();
         let temp_dif_chain = Vec::new();
 
+        let file_header = {
+            let range = 0..mem::size_of::<FileHeader>();
+            let header_slice = try!(slice.get_checked(range).ok_or(IndexOutOfRange));
+            FileHeader::borrowed_from(header_slice)
+        };
+
+        let fat_size = 1 << file_header.sector_shift;
+        let minifat_size = 1 << file_header.mini_sector_shift;
+
         let mut state = Cbff {
-            fat_size: 0,
-            minifat_size: 0,
+            fat_size: fat_size,
+            minifat_size: minifat_size,
             data: slice,
             fat_chain: temp_fat_chain,
             minifat_chain: temp_minifat_chain,
             dif_chain: temp_dif_chain,
-            minifat_start: 0
+            minifat_start: 0,
+            file_header: file_header,
         };
 
-        state.fat_size = 1 << state.get_file_header().sector_shift;
-        state.minifat_size = 1 << state.get_file_header().mini_sector_shift;
-
-        state.dif_chain = state.get_dif_chain();
-        state.fat_chain = state.get_fat_chain();
-        state.minifat_chain = state.get_minifat_chain();
-        state.minifat_start = state.get_dir_entry(0).sect_start;
+        state.dif_chain = try!(state.get_dif_chain());
+        state.fat_chain = try!(state.get_fat_chain());
+        state.minifat_chain = try!(state.get_minifat_chain());
+        state.minifat_start = try!(state.get_dir_entry(0)).sect_start;
 
         assert_eq!(state.fat_chain.len() as u32 % (state.fat_size / 4), 0);
 
-        state
+        Ok(state)
     }
 
     fn get_range(&self, offset: u32, size: u32, index: u32) -> Range<usize> {
@@ -71,54 +82,50 @@ impl<'a> Cbff<'a> {
         begin as usize..end as usize
     }
 
-    fn get_chain_range(&self, offset: u32, step_size: u32, size: u32, start: u32) -> Range<usize> {
+    fn get_chain_range(&self, offset: u32, step_size: u32, size: u32, start: u32) -> CbffResult<Range<usize>> {
         let mut chain_address = start;
         let required_count = offset / (&self.fat_size / step_size);
         for _ in 0..required_count {
-            match self.fat_chain[chain_address as usize] {
-                SectorType::Pointer(offset) => chain_address = offset,
-                x => panic!("{:?}", x),
+            match try!(self.fat_chain.get_checked(chain_address as usize).ok_or(IndexOutOfRange)) {
+                &SectorType::Pointer(offset) => chain_address = offset,
+                &other => return e!(InvalidFatEntry(other)),
             }
         }
         let begin = self.fat_size + chain_address * self.fat_size + (offset % (&self.fat_size / step_size)) * step_size;
         let end = begin + size;
-        begin as usize..end as usize
+        Ok(begin as usize..end as usize)
     }
 
-    fn get_minifat_chain_range(&self, offset: u32, step_size: u32, size: u32, start: u32) -> Range<usize> {
+    fn get_minifat_chain_range(&self, offset: u32, step_size: u32, size: u32, start: u32) -> CbffResult<Range<usize>> {
         assert_eq!(step_size, self.minifat_size);
         let mut minifat_chain_address = start;
         let required_minifat_count = offset / (&self.minifat_size / step_size);
         for _ in 0..required_minifat_count {
-            match self.minifat_chain[minifat_chain_address as usize] {
-                SectorType::Pointer(minifat_offset) => minifat_chain_address = minifat_offset,
-                x => panic!("{:?}", x),
+            match try!(self.minifat_chain.get_checked(minifat_chain_address as usize).ok_or(IndexOutOfRange)) {
+                &SectorType::Pointer(minifat_offset) => minifat_chain_address = minifat_offset,
+                &other => return e!(InvalidMiniFatEntry(other)),
             }
         }
 
         self.get_chain_range(minifat_chain_address, self.minifat_size, size, self.minifat_start)
     }
 
-    fn get_file_header(&self) -> &FileHeader {
-        let range = 0..mem::size_of::<FileHeader>();
-        let slice = &self.data[range];
-        FileHeader::borrowed_from(slice)
-    }
-
-    fn get_dif_chain(&self) -> Vec<u32> {
-        let header = self.get_file_header().sect_fat_start.iter().map(SectorTypeBack::get_enum);
+    fn get_dif_chain(&self) -> CbffResult<Vec<u32>> {
+        let header = self.file_header.sect_fat_start.iter().map(SectorTypeBack::get_enum);
 
         let mut output = Vec::new();
+        let mut have_seen_free = false;
 
         for i in header {
             match i {
-                SectorType::Pointer(offset) => output.push(offset),
-                SectorType::Free => { },
-                x => panic!(x),
+                SectorType::Pointer(offset) if have_seen_free == false => output.push(offset),
+                SectorType::Pointer(_) if have_seen_free == true => return e!(InvalidDifEntry(output, i)),
+                SectorType::Free => { have_seen_free = true },
+                other => return e!(InvalidDifEntry(output, other)),
             }
         }
 
-        let mut offset = self.get_file_header().sect_dif_start.get_enum();
+        let mut offset = self.file_header.sect_dif_start.get_enum();
         let mut count = 0;
 
         'outer: loop {
@@ -126,11 +133,11 @@ impl<'a> Cbff<'a> {
                 SectorType::Pointer(p) => {
                     for idx in 0..(&self.fat_size / 4) {
                         let range = self.get_range(p, 4, idx);
-                        let slice = &self.data[range];
+                        let slice = try!(self.data.get_checked(range).ok_or(IndexOutOfRange));
                         let next_offset = SectorTypeBack::borrowed_from(slice);
 
                         if idx == self.fat_size / 4 {
-                            panic!("David can't count!");
+                            return e!(DavidCantCount);
                         }
 
                         if idx != (&self.fat_size / 4 - 1) {
@@ -138,12 +145,12 @@ impl<'a> Cbff<'a> {
                                 SectorType::Pointer(p) => output.push(p),
                                 SectorType::EndOfChain => break 'outer,
                                 SectorType::Free => { /* FIXME: what's going on? */ },
-                                x => panic!("{:?}", x),
+                                other => return e!(InvalidDifEntry(output, other)),
                             }
                         } else {
                             count += 1;
                             if count > 10000 {
-                                panic!("Infinite loop in DIF chain");
+                                return e!(LoopInDifChain(output, offset));
                             }
 
                             println!("updated");
@@ -153,20 +160,20 @@ impl<'a> Cbff<'a> {
                     }
                 }
                 SectorType::EndOfChain => { break; }
-                x => panic!("{:?}", x),
+                other => return e!(InvalidDifEntry(output, other)),
             }
         }
 
-        output
+        Ok(output)
     }
 
-    fn get_fat_chain(&self) -> Vec<SectorType> {
+    fn get_fat_chain(&self) -> CbffResult<Vec<SectorType>> {
         let mut output = Vec::new();
 
         for &i in &self.dif_chain {
             for idx in 0..(&self.fat_size / mem::size_of::<FatSector>() as u32) {
                 let range = self.get_range(i, mem::size_of::<FatSector>() as u32, idx);
-                let slice = &self.data[range];
+                let slice = try!(self.data.get_checked(range).ok_or(IndexOutOfRange));
                 let header = FatSector::borrowed_from(slice);
                 for &sector in header.fat_sectors.iter() {
                     output.push(sector.get_enum());
@@ -174,46 +181,47 @@ impl<'a> Cbff<'a> {
             }
         }
 
-        output
+        Ok(output)
     }
 
-    fn get_minifat_chain(&self) -> Vec<SectorType> {
+    fn get_minifat_chain(&self) -> CbffResult<Vec<SectorType>> {
         let mut output = Vec::new();
 
-        for offset in 0..(self.get_file_header().mini_fat_count *
+        for offset in 0..(self.file_header.mini_fat_count *
                 (&self.fat_size / mem::size_of::<MiniFatSector>() as u32)) {
-            let range = self.get_chain_range(offset,
+            let range = try!(self.get_chain_range(offset,
                 mem::size_of::<MiniFatSector>() as u32,
                 mem::size_of::<MiniFatSector>() as u32,
-                self.get_file_header().mini_fat_start);
-            let slice = &self.data[range];
+                self.file_header.mini_fat_start));
+            let slice = try!(self.data.get_checked(range).ok_or(IndexOutOfRange));
             let item = MiniFatSector::borrowed_from(slice);
             output.push(item.sector.get_enum());
         }
 
-        output
+        Ok(output)
     }
 
-    pub fn get_file_map(&self) -> HashMap<String, Vec<u8>> {
-        let directories = self.get_directory_map(0);
+    pub fn get_file_map(&self) -> CbffResult<HashMap<String, Vec<u8>>> {
+        let directories = try!(self.get_directory_map(0));
 
-        self.get_files(directories)
+        try!(self.get_files(directories))
                 .into_iter()
                 .map(|(name, dir)| (name, self.get_data(dir)))
-                .collect()
+                .sequence()
+                .map(|i| i.collect())
     }
 
-    fn get_dir_entry(&self, offset: u32) -> &StructuredStorageDirectoryEntry {
-            let range = self.get_chain_range(offset,
+    fn get_dir_entry(&self, offset: u32) -> CbffResult<&StructuredStorageDirectoryEntry> {
+            let range = try!(self.get_chain_range(offset,
                 mem::size_of::<StructuredStorageDirectoryEntry>() as u32,
                 mem::size_of::<StructuredStorageDirectoryEntry>() as u32,
-                self.get_file_header().sect_dir_start);
-            let slice = &self.data[range];
+                self.file_header.sect_dir_start));
+            let slice = try!(self.data.get_checked(range).ok_or(IndexOutOfRange));
 
-            StructuredStorageDirectoryEntry::borrowed_from(slice)
+            Ok(StructuredStorageDirectoryEntry::borrowed_from(slice))
     }
 
-    fn get_directory_map(&self, root_offset: u32) -> HashMap<u32, (&StructuredStorageDirectoryEntry, Option<u32>)> {
+    fn get_directory_map(&self, root_offset: u32) -> CbffResult<HashMap<u32, (&StructuredStorageDirectoryEntry, Option<u32>)>> {
         let mut output: HashMap<u32, (&StructuredStorageDirectoryEntry, Option<u32>)> = HashMap::new();
 
         let mut to_visit: BinaryHeap<(u32, Option<u32>)> = BinaryHeap::new();
@@ -223,16 +231,16 @@ impl<'a> Cbff<'a> {
             match to_visit.pop() {
                 None => break,
                 Some((offset, parent)) => {
-                    let header = self.get_dir_entry(offset);
+                    let header = try!(self.get_dir_entry(offset));
 
                     match header.mse.get_enum() {
                         ObjectType::Root => {
                             if output.insert(offset, (header, parent)) == None {
                                 if let Sid::RegSid(_) = header.left_sibling.get_enum() {
-                                    panic!("Root cannot have siblings");
+                                    return e!(RootHasSiblings);
                                 }
                                 if let Sid::RegSid(_) = header.right_sibling.get_enum() {
-                                    panic!("Root cannot have siblings");
+                                    return e!(RootHasSiblings);
                                 }
                                 if let Sid::RegSid(new_offset) = header.child.get_enum() {
                                     to_visit.push((new_offset, Some(offset)));
@@ -261,21 +269,21 @@ impl<'a> Cbff<'a> {
                                     to_visit.push((new_offset, parent));
                                 }
                                 if let Sid::RegSid(_) = header.child.get_enum() {
-                                    panic!("Stream cannot have child");
+                                    return e!(StreamHasChild);
                                 }
                             }
                         },
                         ObjectType::Invalid => { /* FIXME: log */ },
-                        x => panic!("{:?}", x),
+                        other => return e!(InvalidDirEntry(other)),
                     }
                 }
             }
         }
 
-        output
+        Ok(output)
     }
 
-    fn get_files<'b>(&self, directories: HashMap<u32, (&'b StructuredStorageDirectoryEntry, Option<u32>)>) -> HashMap<String, &'b StructuredStorageDirectoryEntry> {
+    fn get_files<'b>(&self, directories: HashMap<u32, (&'b StructuredStorageDirectoryEntry, Option<u32>)>) -> CbffResult<HashMap<String, &'b StructuredStorageDirectoryEntry>> {
         let mut output = HashMap::new();
 
         for (&offset, &(dir, _)) in &directories {
@@ -287,45 +295,45 @@ impl<'a> Cbff<'a> {
             let mut loop_offset: u32 = offset;
 
             loop {
-                let (loop_dir, loop_parent) = directories[&loop_offset];
-                let loop_name = UTF_16LE.decode(to_bytes(&loop_dir.ab), DecoderTrap::Strict);
-                let loop_name: &str = loop_name.as_ref().map(|x| x.trim_right_matches('\u{0}')).unwrap();
+                let &(loop_dir, loop_parent) = try!(directories.get(&loop_offset).ok_or(InvalidDirectory));
+                let loop_name = try!(UTF_16LE.decode(to_bytes(&loop_dir.ab), DecoderTrap::Strict).map_err(Utf16DecodeError));
+                let loop_name: &str = loop_name.trim_right_matches('\u{0}');
                 name = "/".to_owned() + loop_name + &name;
 
-                if loop_parent == None {
+                if let Some(loop_offset_new) = loop_parent {
+                    loop_offset = loop_offset_new;
+                } else {
                     break;
                 }
-                loop_offset = loop_parent.unwrap();
             }
 
             output.insert(name, dir);
         }
-        output
+
+        Ok(output)
     }
 
-    fn get_data(&self, dir: &StructuredStorageDirectoryEntry) -> Vec<u8> {
+    fn get_data(&self, dir: &StructuredStorageDirectoryEntry) -> CbffResult<Vec<u8>> {
         let mut output = Vec::with_capacity(dir.size as usize);
         let mut remaining_size = dir.size;
         let mut current_offset = 0;
 
-        if dir.size >= self.get_file_header().mini_sector_cutoff {
-            while remaining_size > 0 {
-                let range = self.get_chain_range(current_offset, self.fat_size, min(remaining_size, self.fat_size), dir.sect_start);
-                let slice = &self.data[range];
-                output.extend(slice);
+        while remaining_size > 0 {
+            let range;
+
+            if dir.size >= self.file_header.mini_sector_cutoff {
+                range = try!(self.get_chain_range(current_offset, self.fat_size, min(remaining_size, self.fat_size), dir.sect_start));
                 remaining_size -= min(remaining_size, self.fat_size);
-                current_offset += 1;
-            }
-        } else {
-            while remaining_size > 0 {
-                let range = self.get_minifat_chain_range(current_offset, self.minifat_size, min(remaining_size, self.minifat_size), dir.sect_start);
-                let slice = &self.data[range];
-                output.extend(slice);
+            } else {
+                range = try!(self.get_minifat_chain_range(current_offset, self.minifat_size, min(remaining_size, self.minifat_size), dir.sect_start));
                 remaining_size -= min(remaining_size, self.minifat_size);
-                current_offset += 1;
             }
+
+            let slice = try!(self.data.get_checked(range).ok_or(IndexOutOfRange));
+            output.extend(slice);
+            current_offset += 1;
         }
 
-        output
+        Ok(output)
     }
 }
