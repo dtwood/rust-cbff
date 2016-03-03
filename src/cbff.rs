@@ -330,7 +330,7 @@ impl<'a> Cbff<'a> {
             }
 
             let slice = try!(self.data.get_checked(range).ok_or(IndexOutOfRange));
-            output.extend(slice);
+            output.extend(slice.iter().cloned());
             current_offset += 1;
         }
 

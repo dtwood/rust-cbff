@@ -1,7 +1,5 @@
 // Copyright (c) 2015-2016, David Wood
 
-#![feature(type_ascription)]
-
 extern crate encoding;
 
 mod cbff;
