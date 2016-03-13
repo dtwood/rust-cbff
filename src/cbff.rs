@@ -153,7 +153,6 @@ impl<'a> Cbff<'a> {
                                 return e!(LoopInDifChain(output, offset));
                             }
 
-                            println!("updated");
                             offset = next_offset.get_enum();
                             continue;
                         }
