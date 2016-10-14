@@ -5,7 +5,7 @@ pub type CbffResult<T> = Result<T, CbffError>;
 
 #[derive(Debug, PartialEq)]
 pub struct CbffError {
-    error: CbffErrorEnum
+    error: CbffErrorEnum,
 }
 
 #[derive(Debug, PartialEq)]

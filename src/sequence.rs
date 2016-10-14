@@ -9,7 +9,9 @@ pub trait Sequence {
     fn sequence(self) -> Self::Output;
 }
 
-impl<'a, KP, VP, K, V, E, F> Sequence for Map<hash_map::IntoIter<KP, VP>, F> where F: FnMut((KP, VP)) -> (K, Result<V, E>) {
+impl<'a, KP, VP, K, V, E, F> Sequence for Map<hash_map::IntoIter<KP, VP>, F>
+    where F: FnMut((KP, VP)) -> (K, Result<V, E>)
+{
     type Output = Result<vec::IntoIter<(K, V)>, E>;
 
     fn sequence(self) -> Self::Output {

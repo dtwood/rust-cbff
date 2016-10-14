@@ -228,7 +228,12 @@ pub struct SectorTypeBack {
 
 impl SectorTypeBack {
     pub fn get_enum(&self) -> SectorType {
-        match_enum!(self.backing_val, u32, SectorTypeSpecials, SectorType, SectorType::Pointer, [MaxRegSector, Reserved, DifSector, FatSector, EndOfChain, Free])
+        match_enum!(self.backing_val,
+                    u32,
+                    SectorTypeSpecials,
+                    SectorType,
+                    SectorType::Pointer,
+                    [MaxRegSector, Reserved, DifSector, FatSector, EndOfChain, Free])
     }
 }
 
@@ -240,9 +245,18 @@ impl fmt::Debug for SectorTypeBack {
 
 impl From<SectorType> for SectorTypeBack {
     fn from(val: SectorType) -> SectorTypeBack {
-        SectorTypeBack { backing_val:
-            reverse_match_enum!(val, u32, SectorType, SectorTypeSpecials, SectorType::Pointer,
-                                [MaxRegSector, Reserved, DifSector, FatSector, EndOfChain, Free])
+        SectorTypeBack {
+            backing_val: reverse_match_enum!(val,
+                                             u32,
+                                             SectorType,
+                                             SectorTypeSpecials,
+                                             SectorType::Pointer,
+                                             [MaxRegSector,
+                                              Reserved,
+                                              DifSector,
+                                              FatSector,
+                                              EndOfChain,
+                                              Free]),
         }
     }
 }
@@ -356,8 +370,12 @@ pub struct ObjectTypeBack {
 
 impl ObjectTypeBack {
     pub fn get_enum(&self) -> ObjectType {
-        match_enum!(self.backing_val, u8, ObjectTypeSpecials, ObjectType, ObjectType::Other,
-            [Invalid, Storage, Stream, Lockbytes, Property, Root])
+        match_enum!(self.backing_val,
+                    u8,
+                    ObjectTypeSpecials,
+                    ObjectType,
+                    ObjectType::Other,
+                    [Invalid, Storage, Stream, Lockbytes, Property, Root])
     }
 }
 
@@ -369,9 +387,13 @@ impl fmt::Debug for ObjectTypeBack {
 
 impl From<ObjectType> for ObjectTypeBack {
     fn from(val: ObjectType) -> ObjectTypeBack {
-        ObjectTypeBack { backing_val:
-            reverse_match_enum!(val, u8, ObjectType, ObjectTypeSpecials, ObjectType::Other,
-                [Invalid, Storage, Stream, Lockbytes, Property, Root])
+        ObjectTypeBack {
+            backing_val: reverse_match_enum!(val,
+                                             u8,
+                                             ObjectType,
+                                             ObjectTypeSpecials,
+                                             ObjectType::Other,
+                                             [Invalid, Storage, Stream, Lockbytes, Property, Root]),
         }
     }
 }
@@ -395,8 +417,12 @@ pub struct ColorBack {
 
 impl ColorBack {
     pub fn get_enum(&self) -> Color {
-        match_enum!(self.backing_val, u8, ColorSpecials, Color, Color::Other,
-            [Red, Black])
+        match_enum!(self.backing_val,
+                    u8,
+                    ColorSpecials,
+                    Color,
+                    Color::Other,
+                    [Red, Black])
     }
 }
 
@@ -408,9 +434,13 @@ impl fmt::Debug for ColorBack {
 
 impl From<Color> for ColorBack {
     fn from(val: Color) -> ColorBack {
-        ColorBack { backing_val:
-            reverse_match_enum!(val, u8, Color, ColorSpecials, Color::Other,
-                [Red, Black])
+        ColorBack {
+            backing_val: reverse_match_enum!(val,
+                                             u8,
+                                             Color,
+                                             ColorSpecials,
+                                             Color::Other,
+                                             [Red, Black]),
         }
     }
 }
@@ -448,8 +478,12 @@ pub struct SidBack {
 
 impl SidBack {
     pub fn get_enum(&self) -> Sid {
-        match_enum!(self.backing_val, u32, SidSpecials, Sid, Sid::RegSid,
-            [MaxRegSid, E1, E2, E3, E4, NoStream])
+        match_enum!(self.backing_val,
+                    u32,
+                    SidSpecials,
+                    Sid,
+                    Sid::RegSid,
+                    [MaxRegSid, E1, E2, E3, E4, NoStream])
     }
 }
 
@@ -461,9 +495,13 @@ impl fmt::Debug for SidBack {
 
 impl From<Sid> for SidBack {
     fn from(val: Sid) -> SidBack {
-        SidBack { backing_val:
-            reverse_match_enum!(val, u32, Sid, SidSpecials, Sid::RegSid,
-                [MaxRegSid, E1, E2, E3, E4, NoStream])
+        SidBack {
+            backing_val: reverse_match_enum!(val,
+                                             u32,
+                                             Sid,
+                                             SidSpecials,
+                                             Sid::RegSid,
+                                             [MaxRegSid, E1, E2, E3, E4, NoStream]),
         }
     }
 }
@@ -574,11 +612,11 @@ pub struct StructuredStorageDirectoryEntry {
 }
 
 pub trait BorrowedFrom<'a, T> {
-    fn borrowed_from (val: T) -> &'a Self;
+    fn borrowed_from(val: T) -> &'a Self;
 }
 
 impl<'a> BorrowedFrom<'a, &'a [u8]> for FileHeader {
-    fn borrowed_from (input: &'a [u8]) -> &'a FileHeader {
+    fn borrowed_from(input: &'a [u8]) -> &'a FileHeader {
         let input_ptr: *const [u8] = input as *const [u8];
         let output_ptr: *const FileHeader = input_ptr as *const FileHeader;
         let output = unsafe { &*output_ptr };
@@ -589,9 +627,10 @@ impl<'a> BorrowedFrom<'a, &'a [u8]> for FileHeader {
 }
 
 impl<'a> BorrowedFrom<'a, &'a [u8]> for StructuredStorageDirectoryEntry {
-    fn borrowed_from (input: &'a [u8]) -> &'a StructuredStorageDirectoryEntry {
+    fn borrowed_from(input: &'a [u8]) -> &'a StructuredStorageDirectoryEntry {
         let input_ptr: *const [u8] = input as *const [u8];
-        let output_ptr: *const StructuredStorageDirectoryEntry = input_ptr as *const StructuredStorageDirectoryEntry;
+        let output_ptr: *const StructuredStorageDirectoryEntry =
+            input_ptr as *const StructuredStorageDirectoryEntry;
         let output = unsafe { &*output_ptr };
         assert_eq!(mem::size_of_val(input), mem::size_of_val(output));
 
@@ -600,7 +639,7 @@ impl<'a> BorrowedFrom<'a, &'a [u8]> for StructuredStorageDirectoryEntry {
 }
 
 impl<'a> BorrowedFrom<'a, &'a [u8]> for FatSector {
-    fn borrowed_from (input: &'a [u8]) -> &'a FatSector {
+    fn borrowed_from(input: &'a [u8]) -> &'a FatSector {
         let input_ptr: *const [u8] = input as *const [u8];
         let output_ptr: *const FatSector = input_ptr as *const FatSector;
         let output = unsafe { &*output_ptr };
@@ -611,7 +650,7 @@ impl<'a> BorrowedFrom<'a, &'a [u8]> for FatSector {
 }
 
 impl<'a> BorrowedFrom<'a, &'a [u8]> for MiniFatSector {
-    fn borrowed_from (input: &'a [u8]) -> &'a MiniFatSector {
+    fn borrowed_from(input: &'a [u8]) -> &'a MiniFatSector {
         let input_ptr: *const [u8] = input as *const [u8];
         let output_ptr: *const MiniFatSector = input_ptr as *const MiniFatSector;
         let output = unsafe { &*output_ptr };
@@ -622,7 +661,7 @@ impl<'a> BorrowedFrom<'a, &'a [u8]> for MiniFatSector {
 }
 
 impl<'a> BorrowedFrom<'a, &'a [u8]> for SectorTypeBack {
-    fn borrowed_from (input: &'a [u8]) -> &'a SectorTypeBack {
+    fn borrowed_from(input: &'a [u8]) -> &'a SectorTypeBack {
         let input_ptr: *const [u8] = input as *const [u8];
         let output_ptr: *const SectorTypeBack = input_ptr as *const SectorTypeBack;
         let output = unsafe { &*output_ptr };
@@ -671,14 +710,17 @@ mod tests {
 
         let expected = &FileHeader {
             sig: [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1],
-            id: Guid { contents: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00] },
+            id: Guid {
+                contents: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                           0x00, 0x00, 0x00, 0x00],
+            },
             minor_version: 0x003E,
             dll_version: 0x0003,
             byte_order: 0xFFFE,
             sector_shift: 0x0009,
             mini_sector_shift: 0x0006,
             res: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-            sect_dir_count: 0, /* FIXME */
+            sect_dir_count: 0, // FIXME
             sect_fat_count: 0x00000001,
             sect_dir_start: 0x00000001,
             signature: 0x00000000,
@@ -687,36 +729,115 @@ mod tests {
             mini_fat_count: 0x00000001,
             sect_dif_start: SectorType::Pointer(0xFFFFFFFE).into(),
             sect_dif_count: 0x00000000,
-            sect_fat_start: expand_sectors!([
-                SectorType::Pointer(0x00000000), SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free
-            ]),
+            sect_fat_start: expand_sectors!([SectorType::Pointer(0x00000000),
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free,
+                                             SectorType::Free]),
         };
 
         assert_eq!(result, expected);
@@ -727,41 +848,134 @@ mod tests {
         let result = FatSector::borrowed_from(&DATA[0x200..0x400]);
 
         let expected = &FatSector {
-            fat_sectors: expand_sectors!([
-                SectorType::FatSector, SectorType::EndOfChain, SectorType::EndOfChain,
-                SectorType::Pointer(0x00000004), SectorType::EndOfChain, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free, SectorType::Free, SectorType::Free,
-                SectorType::Free, SectorType::Free
-            ]),
+            fat_sectors: expand_sectors!([SectorType::FatSector,
+                                          SectorType::EndOfChain,
+                                          SectorType::EndOfChain,
+                                          SectorType::Pointer(0x00000004),
+                                          SectorType::EndOfChain,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free,
+                                          SectorType::Free]),
         };
 
         assert_eq!(result, expected);
@@ -772,18 +986,18 @@ mod tests {
         let result = StructuredStorageDirectoryEntry::borrowed_from(&DATA[0x400..0x480]);
 
         let expected = &StructuredStorageDirectoryEntry {
-            ab: [82, 111, 111, 116, 32, 69, 110, 116, // "Root Entry"
-                114, 121 , 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-            ],
+            ab: [82, 111, 111, 116, 32, 69, 110, 116 /* "Root Entry" */, 114, 121, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             cb: 0x16,
             mse: ObjectType::Root.into(),
             bflags: Color::Black.into(),
             left_sibling: Sid::NoStream.into(),
             right_sibling: Sid::NoStream.into(),
             child: Sid::RegSid(0x1).into(),
-            id: Guid { contents: [0x00, 0x67, 0x61, 0x56, 0x54, 0xC1, 0xCE, 0x11, 0x85, 0x53, 0x00, 0xAA, 0x00, 0xA1, 0xF9, 0x5B] },
+            id: Guid {
+                contents: [0x00, 0x67, 0x61, 0x56, 0x54, 0xC1, 0xCE, 0x11, 0x85, 0x53, 0x00, 0xAA,
+                           0x00, 0xA1, 0xF9, 0x5B],
+            },
             user_flags: 0x00000000,
             create_time: Time { value: [0; 8] },
             modify_time: Time { value: [0x80, 0x1E, 0x92, 0x13, 0x4B, 0xB4, 0xBA, 0x01] }, // FIXME
@@ -800,18 +1014,18 @@ mod tests {
         let result = StructuredStorageDirectoryEntry::borrowed_from(&DATA[0x480..0x500]);
 
         let expected = &StructuredStorageDirectoryEntry {
-            ab: [0x0053, 0x0074, 0x006F, 0x0072, 0x0061, 0x0067, 0x0065, 0x0020,
-                0x0031, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-            ],
+            ab: [0x0053, 0x0074, 0x006F, 0x0072, 0x0061, 0x0067, 0x0065, 0x0020, 0x0031, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             cb: 20,
             mse: ObjectType::Storage.into(),
             bflags: Color::Black.into(),
             left_sibling: Sid::NoStream.into(),
             right_sibling: Sid::NoStream.into(),
             child: Sid::RegSid(0x2).into(),
-            id: Guid { contents: [0x00, 0x61, 0x61, 0x56, 0x54, 0xC1, 0xCE, 0x11, 0x85, 0x53, 0x00, 0xAA, 0x00, 0xA1, 0xF9, 0x5B] },
+            id: Guid {
+                contents: [0x00, 0x61, 0x61, 0x56, 0x54, 0xC1, 0xCE, 0x11, 0x85, 0x53, 0x00, 0xAA,
+                           0x00, 0xA1, 0xF9, 0x5B],
+            },
             user_flags: 0x00000000,
             create_time: Time { value: [0, 136, 249, 18, 75, 180, 186, 1] }, // FIXME
             modify_time: Time { value: [128, 30, 146, 19, 75, 180, 186, 1] }, // FIXME
@@ -828,11 +1042,8 @@ mod tests {
         let result = StructuredStorageDirectoryEntry::borrowed_from(&DATA[0x500..0x580]);
 
         let expected = &StructuredStorageDirectoryEntry {
-            ab: [0x53, 0x74, 0x72, 0x65, 0x61, 0x6D, 0x20, 0x31,
-                0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-            ],
+            ab: [0x53, 0x74, 0x72, 0x65, 0x61, 0x6D, 0x20, 0x31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             cb: 18,
             mse: ObjectType::Stream.into(),
             bflags: Color::Black.into(),
@@ -856,11 +1067,8 @@ mod tests {
         let result = StructuredStorageDirectoryEntry::borrowed_from(&DATA[0x580..0x600]);
 
         let expected = &StructuredStorageDirectoryEntry {
-            ab: [0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-            ],
+            ab: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0],
             cb: 0,
             mse: ObjectType::Invalid.into(),
             bflags: Color::Red.into(),
@@ -882,10 +1090,10 @@ mod tests {
     #[test]
     fn unpack_mini_fat_sector() {
         let dummy = &MiniFatSector { sector: SectorType::Pointer(0xDEADBEEF).into() };
-        let mut result = [dummy; (0x200/4)];
+        let mut result = [dummy; (0x200 / 4)];
 
-        for i in 0..(0x200/4) {
-            result[i] = MiniFatSector::borrowed_from(&DATA[(0x600+i*4)..(0x600+i*4+4)]);
+        for i in 0..(0x200 / 4) {
+            result[i] = MiniFatSector::borrowed_from(&DATA[(0x600 + i * 4)..(0x600 + i * 4 + 4)]);
         }
         // let result = MiniFatSector::borrowed_from(&DATA[0x600..0x800]);
 
