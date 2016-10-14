@@ -42,10 +42,6 @@ pub struct Cbff<'a> {
 
 impl<'a> Cbff<'a> {
     pub fn from_slice(slice: &'a [u8]) -> CbffResult<Cbff<'a>> {
-        let temp_fat_chain = Vec::new();
-        let temp_minifat_chain = Vec::new();
-        let temp_dif_chain = Vec::new();
-
         let file_header = {
             let range = 0..mem::size_of::<FileHeader>();
             let header_slice = try!(slice.get_checked(range).ok_or(IndexOutOfRange));
@@ -59,9 +55,9 @@ impl<'a> Cbff<'a> {
             fat_size: fat_size,
             minifat_size: minifat_size,
             data: slice,
-            fat_chain: temp_fat_chain,
-            minifat_chain: temp_minifat_chain,
-            dif_chain: temp_dif_chain,
+            fat_chain: Vec::new(),
+            minifat_chain: Vec::new(),
+            dif_chain: Vec::new(),
             minifat_start: 0,
             file_header: file_header,
         };
