@@ -67,7 +67,6 @@ impl fmt::Debug for Guid {
 /// The Header contains vital information for the instantiation of a Compound File. Its total
 /// length is 512 bytes. There is exactly one Header in any Compound File, and it is always located
 /// beginning at offset zero in the file.
-#[derive(Eq)]
 #[repr(packed)]
 pub struct FileHeader {
     /// {0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1} for current version,
@@ -149,6 +148,8 @@ macro_rules! write_item_array {
         try!(writeln!($f, "{}: {:?}", stringify!($field), array_to_slice(&$slf.$field)));
     );
 }
+
+impl Eq for FileHeader { }
 
 impl PartialEq for FileHeader {
     fn eq(&self, other: &Self) -> bool {
@@ -282,10 +283,11 @@ impl From<SectorType> for SectorTypeBack {
 /// A SECT can be converted into a byte offset into the file by using the following formula: SECT
 /// << ssheader._uSectorShift + sizeof(ssheader). This implies that sector 0 of the file begins at
 /// byte offset 512, not at 0.
-#[derive(Eq)]
 pub struct FatSector {
     pub fat_sectors: [SectorTypeBack; 128],
 }
+
+impl Eq for FatSector { }
 
 impl PartialEq for FatSector {
     fn eq(&self, other: &Self) -> bool {
@@ -321,25 +323,9 @@ impl fmt::Debug for FatSector {
 ///
 /// The Ministream is chained within the Fat in exactly the same fashion as any normal stream. It
 /// is referenced by the first Directory Entry (SID 0).
-#[derive(Eq)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct MiniFatSector {
     pub sector: SectorTypeBack,
-}
-
-impl PartialEq for MiniFatSector {
-    fn eq(&self, other: &Self) -> bool {
-        check_eq!(self, other, sector);
-
-        true
-    }
-}
-
-impl fmt::Debug for MiniFatSector {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write_item!(f, self, sector);
-
-        Ok(())
-    }
 }
 
 #[repr(u32)]
