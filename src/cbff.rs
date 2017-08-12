@@ -1,15 +1,15 @@
+use super::error::CbffErrorEnum::*;
+use super::error::CbffResult;
+use super::sequence::Sequence;
 use cbff_structs::*;
-use encoding::all::UTF_16LE;
 use encoding::{DecoderTrap, Encoding};
+use encoding::all::UTF_16LE;
 use safe_index::SafeIndex;
 use std::cmp::min;
 use std::collections::{BinaryHeap, HashMap};
 use std::mem;
 use std::ops::Range;
 use std::slice;
-use super::sequence::Sequence;
-use super::error::CbffResult;
-use super::error::CbffErrorEnum::*;
 
 macro_rules! e {
         ($e: expr) => (::std::result::Result::Err(From::from($e)))
@@ -21,8 +21,10 @@ fn to_bytes<B>(input: &[B]) -> &[u8] {
     let output_size = input_size;
     let output_len = output_size / mem::size_of::<u8>();
 
-    assert_eq!(input_len.checked_mul(mem::size_of::<B>()),
-               output_len.checked_mul(mem::size_of::<u8>()));
+    assert_eq!(
+        input_len.checked_mul(mem::size_of::<B>()),
+        output_len.checked_mul(mem::size_of::<u8>())
+    );
 
     let in_ptr: *const B = input.as_ptr() as *const B;
     let out_ptr: *const u8 = in_ptr as *const u8;
@@ -79,52 +81,65 @@ impl<'a> Cbff<'a> {
         begin as usize..end as usize
     }
 
-    fn get_chain_range(&self,
-                       offset: u32,
-                       step_size: u32,
-                       size: u32,
-                       start: u32)
-                       -> CbffResult<Range<usize>> {
+    fn get_chain_range(
+        &self,
+        offset: u32,
+        step_size: u32,
+        size: u32,
+        start: u32,
+    ) -> CbffResult<Range<usize>> {
         let mut chain_address = start;
         let required_count = offset / (&self.fat_size / step_size);
         for _ in 0..required_count {
-            match try!(self.fat_chain.get_checked(chain_address as usize).ok_or(IndexOutOfRange)) {
+            match try!(
+                self.fat_chain
+                    .get_checked(chain_address as usize)
+                    .ok_or(IndexOutOfRange)
+            ) {
                 &SectorType::Pointer(offset) => chain_address = offset,
                 &other => return e!(InvalidFatEntry(other)),
             }
         }
         let begin = self.fat_size + chain_address * self.fat_size +
-                    (offset % (&self.fat_size / step_size)) * step_size;
+            (offset % (&self.fat_size / step_size)) * step_size;
         let end = begin + size;
         Ok(begin as usize..end as usize)
     }
 
-    fn get_minifat_chain_range(&self,
-                               offset: u32,
-                               step_size: u32,
-                               size: u32,
-                               start: u32)
-                               -> CbffResult<Range<usize>> {
+    fn get_minifat_chain_range(
+        &self,
+        offset: u32,
+        step_size: u32,
+        size: u32,
+        start: u32,
+    ) -> CbffResult<Range<usize>> {
         assert_eq!(step_size, self.minifat_size);
         let mut minifat_chain_address = start;
         let required_minifat_count = offset / (&self.minifat_size / step_size);
         for _ in 0..required_minifat_count {
-            match try!(self.minifat_chain
-                .get_checked(minifat_chain_address as usize)
-                .ok_or(IndexOutOfRange)) {
+            match try!(
+                self.minifat_chain
+                    .get_checked(minifat_chain_address as usize)
+                    .ok_or(IndexOutOfRange)
+            ) {
                 &SectorType::Pointer(minifat_offset) => minifat_chain_address = minifat_offset,
                 &other => return e!(InvalidMiniFatEntry(other)),
             }
         }
 
-        self.get_chain_range(minifat_chain_address,
-                             self.minifat_size,
-                             size,
-                             self.minifat_start)
+        self.get_chain_range(
+            minifat_chain_address,
+            self.minifat_size,
+            size,
+            self.minifat_start,
+        )
     }
 
     fn get_dif_chain(&self) -> CbffResult<Vec<u32>> {
-        let header = self.file_header.sect_fat_start.iter().map(SectorTypeBack::get_enum);
+        let header = self.file_header
+            .sect_fat_start
+            .iter()
+            .map(SectorTypeBack::get_enum);
 
         let mut output = Vec::new();
         let mut have_seen_free = false;
@@ -205,12 +220,16 @@ impl<'a> Cbff<'a> {
     fn get_minifat_chain(&self) -> CbffResult<Vec<SectorType>> {
         let mut output = Vec::new();
 
-        for offset in 0..(self.file_header.mini_fat_count *
-                          (&self.fat_size / mem::size_of::<MiniFatSector>() as u32)) {
-            let range = try!(self.get_chain_range(offset,
-                                                  mem::size_of::<MiniFatSector>() as u32,
-                                                  mem::size_of::<MiniFatSector>() as u32,
-                                                  self.file_header.mini_fat_start));
+        for offset in 0..
+            (self.file_header.mini_fat_count *
+                 (&self.fat_size / mem::size_of::<MiniFatSector>() as u32))
+        {
+            let range = try!(self.get_chain_range(
+                offset,
+                mem::size_of::<MiniFatSector>() as u32,
+                mem::size_of::<MiniFatSector>() as u32,
+                self.file_header.mini_fat_start
+            ));
             let slice = try!(self.data.get_checked(range).ok_or(IndexOutOfRange));
             let item = MiniFatSector::borrowed_from(slice);
             output.push(item.sector.get_enum());
@@ -230,19 +249,21 @@ impl<'a> Cbff<'a> {
     }
 
     fn get_dir_entry(&self, offset: u32) -> CbffResult<&StructuredStorageDirectoryEntry> {
-        let range = try!(self.get_chain_range(offset,
-                             mem::size_of::<StructuredStorageDirectoryEntry>() as u32,
-                             mem::size_of::<StructuredStorageDirectoryEntry>() as u32,
-                             self.file_header.sect_dir_start));
+        let range = try!(self.get_chain_range(
+            offset,
+            mem::size_of::<StructuredStorageDirectoryEntry>() as u32,
+            mem::size_of::<StructuredStorageDirectoryEntry>() as u32,
+            self.file_header.sect_dir_start
+        ));
         let slice = try!(self.data.get_checked(range).ok_or(IndexOutOfRange));
 
         Ok(StructuredStorageDirectoryEntry::borrowed_from(slice))
     }
 
-    fn get_directory_map
-        (&self,
-         root_offset: u32)
-         -> CbffResult<HashMap<u32, (&StructuredStorageDirectoryEntry, Option<u32>)>> {
+    fn get_directory_map(
+        &self,
+        root_offset: u32,
+    ) -> CbffResult<HashMap<u32, (&StructuredStorageDirectoryEntry, Option<u32>)>> {
         let mut output: HashMap<u32, (&StructuredStorageDirectoryEntry, Option<u32>)> =
             HashMap::new();
 
@@ -307,9 +328,10 @@ impl<'a> Cbff<'a> {
         Ok(output)
     }
 
-    fn get_files<'b>(&self,
-                     directories: HashMap<u32, (&'b StructuredStorageDirectoryEntry, Option<u32>)>)
-                     -> CbffResult<HashMap<String, &'b StructuredStorageDirectoryEntry>> {
+    fn get_files<'b>(
+        &self,
+        directories: HashMap<u32, (&'b StructuredStorageDirectoryEntry, Option<u32>)>,
+    ) -> CbffResult<HashMap<String, &'b StructuredStorageDirectoryEntry>> {
         let mut output = HashMap::new();
 
         for (&offset, &(dir, _)) in &directories {
@@ -321,10 +343,13 @@ impl<'a> Cbff<'a> {
             let mut loop_offset: u32 = offset;
 
             loop {
-                let &(loop_dir, loop_parent) = try!(directories.get(&loop_offset)
-                    .ok_or(InvalidDirectory));
-                let loop_name = try!(UTF_16LE.decode(to_bytes(&loop_dir.ab), DecoderTrap::Strict)
-                    .map_err(Utf16DecodeError));
+                let &(loop_dir, loop_parent) =
+                    try!(directories.get(&loop_offset).ok_or(InvalidDirectory));
+                let loop_name = try!(
+                    UTF_16LE
+                        .decode(to_bytes(&loop_dir.ab), DecoderTrap::Strict)
+                        .map_err(Utf16DecodeError)
+                );
                 let loop_name: &str = loop_name.trim_right_matches('\u{0}');
                 name = "/".to_owned() + loop_name + &name;
 
@@ -350,16 +375,20 @@ impl<'a> Cbff<'a> {
             let range;
 
             if dir.size >= self.file_header.mini_sector_cutoff {
-                range = try!(self.get_chain_range(current_offset,
-                                                  self.fat_size,
-                                                  min(remaining_size, self.fat_size),
-                                                  dir.sect_start));
+                range = try!(self.get_chain_range(
+                    current_offset,
+                    self.fat_size,
+                    min(remaining_size, self.fat_size),
+                    dir.sect_start
+                ));
                 remaining_size -= min(remaining_size, self.fat_size);
             } else {
-                range = try!(self.get_minifat_chain_range(current_offset,
-                                                          self.minifat_size,
-                                                          min(remaining_size, self.minifat_size),
-                                                          dir.sect_start));
+                range = try!(self.get_minifat_chain_range(
+                    current_offset,
+                    self.minifat_size,
+                    min(remaining_size, self.minifat_size),
+                    dir.sect_start
+                ));
                 remaining_size -= min(remaining_size, self.minifat_size);
             }
 
